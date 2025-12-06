@@ -1,0 +1,16 @@
+# Nextflow
+work/
+.nextflow/
+.nextflow.log*
+results/
+
+# Data files
+data/
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+
+# Reports
+*.html
+*.pdf
