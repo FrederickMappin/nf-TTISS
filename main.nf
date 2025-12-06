@@ -14,6 +14,7 @@ params.primer = "^NNNNNNNNNNNNNNNNNCGC"
 params.error_rate = 0.1
 params.min_length = 40
 params.quality_cutoff = 20
+params.reference = "data/reference/hg19_chr8.fa"
 
 // Print parameters
 log.info """\
@@ -100,6 +101,34 @@ process TRIM_AND_TRUNCATE {
 }
 
 /*
+ * Process: Map trimmed reads with BWA
+ */
+process BWA_MAP {
+    tag "$sample_id"
+    publishDir "${params.outdir}/mapped", mode: 'copy'
+    
+    input:
+    tuple val(sample_id), path(reads)
+    path reference
+    path reference_index
+    
+    output:
+    tuple val(sample_id), path("${sample_id}.sam"), emit: sam
+    tuple val(sample_id), path("${sample_id}.bam"), emit: bam
+    tuple val(sample_id), path("${sample_id}.bam.bai"), emit: bai
+    
+    script:
+    """
+    bwa mem -t ${task.cpus} -k 10 -T 15 -A 1 -B 1 -O 1 -E 1 -I 1000 ${reference} ${reads[0]} ${reads[1]} > ${sample_id}.sam
+    
+    samtools view -Sb ${sample_id}.sam | \
+        samtools sort -@ ${task.cpus} -o ${sample_id}.bam -
+    
+    samtools index ${sample_id}.bam
+    """
+}
+
+/*
  * Main workflow
  */
 workflow {
@@ -107,11 +136,18 @@ workflow {
     read_pairs_ch = Channel
         .fromFilePairs(params.reads, checkIfExists: true)
     
+    // Reference genome and index files
+    reference_ch = Channel.fromPath(params.reference, checkIfExists: true)
+    reference_index_ch = Channel.fromPath("${params.reference}.*", checkIfExists: true).collect()
+    
     // Run Cutadapt to filter by primer
     CUTADAPT(read_pairs_ch)
     
     // Trim primer and truncate to mapping lengths
     TRIM_AND_TRUNCATE(CUTADAPT.out.filtered_reads)
+    
+    // Map trimmed reads with BWA
+    BWA_MAP(TRIM_AND_TRUNCATE.out.trimmed_reads, reference_ch, reference_index_ch)
 }
 
 workflow.onComplete {
