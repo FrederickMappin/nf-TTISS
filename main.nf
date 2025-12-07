@@ -121,10 +121,46 @@ process BWA_MAP {
     """
     bwa mem -t ${task.cpus} -k 10 -T 15 -A 1 -B 1 -O 1 -E 1 -I 1000 ${reference} ${reads[0]} ${reads[1]} > ${sample_id}.sam
     
-    samtools view -Sb ${sample_id}.sam | \
+    samtools view -f 2 -Sb ${sample_id}.sam | \
         samtools sort -@ ${task.cpus} -o ${sample_id}.bam -
     
     samtools index ${sample_id}.bam
+    """
+}
+
+/*
+ * Process: Extract 100bp windows around integration sites
+ */
+process EXTRACT_WINDOWS {
+    tag "$sample_id"
+    publishDir "${params.outdir}/windows", mode: 'copy'
+    
+    input:
+    tuple val(sample_id), path(bam)
+    path reference
+    
+    output:
+    tuple val(sample_id), path("${sample_id}_windows.bed"), emit: bed
+    tuple val(sample_id), path("${sample_id}_windows.fasta"), emit: fasta
+    
+    script:
+    """
+    # Install tools if needed
+    mamba install -y -c bioconda -c conda-forge samtools bedtools
+    
+    # Create FASTA index if it doesn't exist
+    samtools faidx ${reference}
+    
+    # Create windows with read counts, filter for ≥1 reads
+    samtools view -F 4 ${bam} | \
+      awk 'BEGIN{OFS="\\t"} {print \$3, \$4-50, \$4+50}' | \
+      sort -k1,1 -k2,2n | \
+      uniq -c | \
+      awk '\$1 >= 1 {print \$2"\\t"\$3"\\t"\$4"\\t"\$1}' > ${sample_id}_windows.bed
+    
+    # Extract sequences from reference
+    bedtools getfasta -fi ${reference} -bed ${sample_id}_windows.bed \
+      -fo ${sample_id}_windows.fasta
     """
 }
 
@@ -148,6 +184,9 @@ workflow {
     
     // Map trimmed reads with BWA
     BWA_MAP(TRIM_AND_TRUNCATE.out.trimmed_reads, reference_ch, reference_index_ch)
+    
+    // Extract 100bp windows around integration sites with ≥2 reads
+    EXTRACT_WINDOWS(BWA_MAP.out.bam, reference_ch)
 }
 
 workflow.onComplete {
