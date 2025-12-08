@@ -156,7 +156,10 @@ process EXTRACT_WINDOWS {
       awk 'BEGIN{OFS="\\t"} {print \$3, \$4-50, \$4+50}' | \
       sort -k1,1 -k2,2n | \
       uniq -c | \
-      awk '\$1 >= 1 {print \$2"\\t"\$3"\\t"\$4"\\t"\$1}' > ${sample_id}_windows.bed
+      awk '\$1 >= 1 {print \$2"\\t"\$3"\\t"\$4"\\t"\$1}' > ${sample_id}_windows_raw.bed
+    
+    # Merge windows within 10bp and sum read counts
+    bedtools merge -i ${sample_id}_windows_raw.bed -c 4 -o sum -d 10 > ${sample_id}_windows.bed
     
     # Extract sequences from reference
     bedtools getfasta -fi ${reference} -bed ${sample_id}_windows.bed \
