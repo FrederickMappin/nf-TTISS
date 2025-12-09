@@ -1,0 +1,3 @@
+Name,SingleMatch,Mismatches,GuideNumber,CrudeSpacer,RealSpacer,CutSiteScore,PAM_Match
+test_with_pam|chr8:100-200,False,0,1,AATTCTTCTTCTGAAATAGTGGG,--------------------GGG,36,True
+test_rc_with_pam|chr8:300-400,False,0,1,CCTACTATTTCAGAAGAAGAATT,--------------------AGG,26,True
