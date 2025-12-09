@@ -15,6 +15,8 @@ params.error_rate = 0.1
 params.min_length = 40
 params.quality_cutoff = 20
 params.reference = "data/reference/hg19_chr8.fa"
+params.guides = "TTIS/Guides.txt"
+params.pam = "NGG"
 
 // Print parameters
 log.info """\
@@ -151,19 +153,48 @@ process EXTRACT_WINDOWS {
     # Create FASTA index if it doesn't exist
     samtools faidx ${reference}
     
-    # Create windows with read counts, filter for ≥1 reads
+    # Create windows with read counts (no filtering yet)
     samtools view -F 4 ${bam} | \
       awk 'BEGIN{OFS="\\t"} {print \$3, \$4-50, \$4+50}' | \
       sort -k1,1 -k2,2n | \
       uniq -c | \
-      awk '\$1 >= 1 {print \$2"\\t"\$3"\\t"\$4"\\t"\$1}' > ${sample_id}_windows_raw.bed
+      awk '{print \$2"\\t"\$3"\\t"\$4"\\t"\$1}' > ${sample_id}_windows_raw.bed
     
-    # Merge windows within 10bp and sum read counts
-    bedtools merge -i ${sample_id}_windows_raw.bed -c 4 -o sum -d 10 > ${sample_id}_windows.bed
+    # Merge windows within 10bp and sum read counts, then filter for ≥2 total reads
+    bedtools merge -i ${sample_id}_windows_raw.bed -c 4 -o sum -d 10 | \
+      awk '\$4 >= 1' > ${sample_id}_windows.bed
     
     # Extract sequences from reference
     bedtools getfasta -fi ${reference} -bed ${sample_id}_windows.bed \
       -fo ${sample_id}_windows.fasta
+    """
+}
+
+/*
+ * Process: Match guides to extracted windows
+ */
+process MATCH_GUIDES {
+    tag "$sample_id"
+    publishDir "${params.outdir}/matches", mode: 'copy'
+    
+    input:
+    tuple val(sample_id), path(fasta)
+    path guides
+    
+    output:
+    tuple val(sample_id), path("${sample_id}_matches.csv"), emit: matches
+    
+    script:
+    """
+    # Install Python dependencies
+    pip3 install biopython numpy
+    
+    # Run the matcher
+    python3 ${projectDir}/TTIS/main.py \
+        --guidefile ${guides} \
+        --fastafile ${fasta} \
+        --pam ${params.pam} \
+        --output ${sample_id}_matches.csv
     """
 }
 
@@ -179,6 +210,9 @@ workflow {
     reference_ch = Channel.fromPath(params.reference, checkIfExists: true)
     reference_index_ch = Channel.fromPath("${params.reference}.*", checkIfExists: true).collect()
     
+    // Guide file
+    guides_ch = Channel.fromPath(params.guides, checkIfExists: true)
+    
     // Run Cutadapt to filter by primer
     CUTADAPT(read_pairs_ch)
     
@@ -190,6 +224,9 @@ workflow {
     
     // Extract 100bp windows around integration sites with ≥2 reads
     EXTRACT_WINDOWS(BWA_MAP.out.bam, reference_ch)
+    
+    // Match guides to windows
+    MATCH_GUIDES(EXTRACT_WINDOWS.out.fasta, guides_ch)
 }
 
 workflow.onComplete {
