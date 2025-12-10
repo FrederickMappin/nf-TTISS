@@ -32,6 +32,44 @@ log.info """\
     .stripIndent()
 
 /*
+ * Process: Run FastQC for quality control
+ */
+process FASTQC {
+    tag "$sample_id"
+    publishDir "${params.outdir}/fastqc", mode: 'copy'
+    
+    input:
+    tuple val(sample_id), path(reads)
+    
+    output:
+    path "*.{html,zip}", emit: reports
+    
+    script:
+    """
+    fastqc -t ${task.cpus} ${reads[0]} ${reads[1]}
+    """
+}
+
+/*
+ * Process: Run MultiQC to aggregate FastQC reports
+ */
+process MULTIQC {
+    publishDir "${params.outdir}/multiqc", mode: 'copy'
+    
+    input:
+    path('*')
+    
+    output:
+    path "multiqc_report.html", emit: report
+    path "multiqc_data", emit: data
+    
+    script:
+    """
+    multiqc .
+    """
+}
+
+/*
  * Process: Run Cutadapt for primer filtering
  */
 process CUTADAPT {
@@ -212,6 +250,12 @@ workflow {
     
     // Guide file
     guides_ch = Channel.fromPath(params.guides, checkIfExists: true)
+    
+    // Run FastQC on raw reads
+    FASTQC(read_pairs_ch)
+    
+    // Run MultiQC to aggregate FastQC reports
+    MULTIQC(FASTQC.out.reports.collect())
     
     // Run Cutadapt to filter by primer
     CUTADAPT(read_pairs_ch)
