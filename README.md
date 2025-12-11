@@ -108,8 +108,3 @@ results/
 - **Strand-aware matching**: Searches both forward and reverse complement
 - **Reproducible**: Docker/Singularity containers ensure consistency
 
-
-
-## Contact
-
-For questions or issues, please open an issue on GitHub or contact [your email].
