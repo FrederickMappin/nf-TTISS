@@ -108,21 +108,7 @@ results/
 - **Strand-aware matching**: Searches both forward and reverse complement
 - **Reproducible**: Docker/Singularity containers ensure consistency
 
-## Execution Profiles
 
-- `standard` - Local execution (default)
-- `docker` - Docker containers
-- `singularity` - Singularity containers
-- `slurm` - SLURM cluster execution
-
-## Citation
-
-If you use this pipeline, please cite:
-[Your publication or preprint here]
-
-## License
-
-[Your license here]
 
 ## Contact
 
