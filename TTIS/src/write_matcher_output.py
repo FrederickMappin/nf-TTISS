@@ -1,8 +1,32 @@
+"""
+write_matcher_output — Serialize Matcher results to CSV with PAM filtering.
+
+Only windows whose PAM-adjacent bases match the user-supplied pattern are
+written to the output.  ``N`` in the PAM pattern acts as a wildcard
+matching any nucleotide.
+"""
+
+from __future__ import annotations
+
 import csv
 
-def pam_matches(pam_seq, pam_pattern):
-    """
-    Returns True if pam_seq matches pam_pattern, where 'N' in pam_pattern is a wildcard.
+
+def pam_matches(pam_seq: str, pam_pattern: str) -> bool:
+    """Check whether *pam_seq* matches *pam_pattern*.
+
+    ``N`` in *pam_pattern* is treated as a wildcard that matches any
+    character.  All other characters must match exactly.
+
+    Parameters
+    ----------
+    pam_seq : str
+        Observed PAM nucleotides extracted from the spacer.
+    pam_pattern : str
+        Expected PAM pattern (e.g. ``NGG``).
+
+    Returns
+    -------
+    bool
     """
     if len(pam_seq) != len(pam_pattern):
         return False
@@ -13,11 +37,21 @@ def pam_matches(pam_seq, pam_pattern):
             return False
     return True
 
-def write_matcher_output_to_csv(results, pam_sequence, output_file):
-    """
-    Write matcher results to a CSV, including PAM match status.
-    Each row: [name, match, mismatches, guide_number, crude_spacer, real_spacer, cut_site_score, pam_match]
-    pam_match: True if PAM in real_spacer matches pam_sequence (with 'N' as wildcard)
+
+def write_matcher_output_to_csv(
+    results: dict,
+    pam_sequence: str,
+    output_file: str,
+) -> None:
+    """Write PAM-validated Matcher results to a CSV file.
+
+    For each window result the PAM bases at the end of the RealSpacer are
+    compared to *pam_sequence*.  Only passing rows are emitted.
+
+    Columns
+    -------
+    Name, SingleMatch, Mismatches, GuideNumber, CrudeSpacer,
+    RealSpacer, CutSiteScore, PAM_Match
     """
     with open(output_file, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)

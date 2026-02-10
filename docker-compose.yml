@@ -1,0 +1,58 @@
+# =============================================================================
+# docker-compose.yml — nf-TTISS Development & Execution Environment
+# =============================================================================
+#
+# Usage:
+#   docker compose build                 # Build the image
+#   docker compose run --rm pipeline     # Drop into a shell inside the container
+#   docker compose run --rm pipeline \
+#       "nextflow run /pipeline/main.nf" # Run the full Nextflow pipeline
+#
+# Bind-mount your local data/ and results/ directories so the pipeline can
+# read inputs and write outputs back to the host filesystem.
+# =============================================================================
+
+version: "3.9"
+
+services:
+  # ---------------------------------------------------------------------------
+  # pipeline — full pipeline image with all bioinformatics tools
+  # ---------------------------------------------------------------------------
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nf-ttiss:latest
+    container_name: nf-ttiss-pipeline
+    volumes:
+      # Mount local data directory (reads + reference genome)
+      - ./data:/pipeline/data:ro
+      # Mount results directory (writable)
+      - ./results:/pipeline/results
+      # Mount guide file directory
+      - ./TTIS:/pipeline/TTIS:ro
+    working_dir: /pipeline
+    environment:
+      - NXF_SINGULARITY_CACHEDIR=/tmp/singularity
+    # Default: open a bash shell; override with your own command
+    entrypoint: ["/bin/bash", "-c"]
+    command: ["bash"]
+
+  # ---------------------------------------------------------------------------
+  # ttis-matcher — run only the Python guide-matching step
+  # ---------------------------------------------------------------------------
+  ttis-matcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nf-ttiss:latest
+    container_name: nf-ttiss-matcher
+    volumes:
+      - ./data:/pipeline/data:ro
+      - ./results:/pipeline/results
+      - ./TTIS:/pipeline/TTIS:ro
+    working_dir: /pipeline
+    entrypoint: ["python3", "/pipeline/TTIS/main.py"]
+    # Example: override command at runtime
+    # docker compose run --rm ttis-matcher \
+    #   --guidefile TTIS/Guides.txt --fastafile data/windows.fasta --pam NGG

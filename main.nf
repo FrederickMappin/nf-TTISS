@@ -1,8 +1,26 @@
 #!/usr/bin/env nextflow
 
 /*
- * Nextflow pipeline with Cutadapt
- * Adapter trimming workflow
+ * =============================================================================
+ * nf-TTISS — Targeted Transgene Integration Site Sequencing Pipeline
+ * =============================================================================
+ *
+ * Detects and characterises off-target transgene integration sites in
+ * CRISPR genome-editing experiments using dsODN donors.
+ *
+ * Pipeline steps:
+ *   1. FASTQC           — per-read quality control
+ *   2. MULTIQC          — aggregate QC report
+ *   3. CUTADAPT         — filter reads by UMI primer
+ *   4. TRIM_AND_TRUNCATE— trim primer + truncate R1/R2
+ *   5. BWA_MAP          — ultra-sensitive alignment to reference genome
+ *   6. EXTRACT_WINDOWS  — 100 bp windows around integration sites
+ *   7. MATCH_GUIDES     — guide-RNA matching with PAM validation
+ *
+ * Usage:
+ *   nextflow run main.nf -profile docker
+ *   nextflow run main.nf -profile docker --reads "data/*_R{1,2}.fastq.gz"
+ * =============================================================================
  */
 
 nextflow.enable.dsl=2

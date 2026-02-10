@@ -1,0 +1,40 @@
+# =============================================================================
+# .dockerignore — exclude files from the Docker build context
+# =============================================================================
+
+# Version control
+.git
+.gitignore
+
+# Nextflow work directory (can be very large)
+work/
+.nextflow/
+.nextflow.log*
+
+# Results from previous runs
+results/
+
+# Large data files — mount these at runtime instead
+data/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# IDE / editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docs / non-runtime files
+robots.txt
+*.md
+LICENSE

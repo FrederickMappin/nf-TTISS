@@ -1,9 +1,58 @@
+"""
+Matcher — Best-match guide finder for a single genomic window.
+
+Slides a 20 bp window across the target sequence, computes the Hamming
+distance to every guide (forward + reverse complement), and returns the
+best hit(s) along with orientation, PAM context, and cut-site distance.
+"""
+
 from Bio.Seq import Seq
+
 from src.hamdist import hamdist
 from src.gRNAfinder import gRNAfinder
 from src.StringChanger import StringChanger
 
-def Matcher(TargetString, CutSite, Guides, OriginalGuides, MismatchThreshold, CutDist, DelimiterReadout, Delimiter, pam_length=3):
+
+def Matcher(
+    TargetString: str,
+    CutSite: int,
+    Guides: list[str],
+    OriginalGuides,
+    MismatchThreshold: int,
+    CutDist: int,
+    DelimiterReadout: bool,
+    Delimiter: str,
+    pam_length: int = 3,
+) -> list:
+    """Find the best-matching guide RNA for a genomic window.
+
+    Parameters
+    ----------
+    TargetString : str
+        The 100 bp genomic window sequence to search.
+    CutSite : int
+        Expected cut-site position for score calculation.
+    Guides : list[str]
+        Alternating forward / reverse-complement guide sequences.
+    OriginalGuides : numpy.ndarray
+        Original guide entries ``[[id, sequence], ...]``.
+    MismatchThreshold : int
+        Maximum Hamming distance to consider a guide a valid match.
+    CutDist : int
+        Distance (bp) from spacer start to predicted cut site.
+    DelimiterReadout : bool
+        If True, annotate matching positions with *Delimiter*.
+    Delimiter : str
+        Character used for matching positions (typically ``-``).
+    pam_length : int
+        Length of the PAM sequence (default 3 for NGG).
+
+    Returns
+    -------
+    list
+        ``[SingleMatch, MMs, GuideNumberList, CrudeSpacerList,
+          RealSpacerList, CutSiteScoreList]``
+    """
     BestDist = 25
     GuideNumber = 0
     CutSiteScore = 100
