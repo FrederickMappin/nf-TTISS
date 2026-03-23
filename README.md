@@ -6,9 +6,7 @@
 
 Based on the work from "Highly Parallel Profiling of Cas9 Variant Specificity"(https://pubmed.ncbi.nlm.nih.gov/32187529/)
 
-A  Nextflow pipeline Tagmentation-based Tag Integration Site Sequencing (TTISS), a
-pipeline for analyzing double-strand breaks, such as those created by CRISPR
-nucleases.
+A Nextflow pipeline Tagmentation-based Tag Integration Site Sequencing (TTISS), a pipeline for analyzing double-strand breaks, such as those created by CRISPR nucleases.
 ---
 
 ## Table of Contents
