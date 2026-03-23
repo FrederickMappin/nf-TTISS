@@ -33,7 +33,7 @@ nucleases.
 
 ## Background
 
-After CRISPR-mediated genome editing with dsODN donors, the donor DNA can integrate at both the on-target cut site and at off-target sites throughout the genome.  **TTISS** (Targeted Transgene Integration Site Sequencing) identifies those sites by:
+After CRISPR-mediated genome editing with dsODN donors, the donor DNA can integrate at both the on-target cut site and at off-target sites throughout the genome.  **TTISS** (Tagmentation-based Tag Integration Site Sequencing) identifies those sites by:
 
 1. Sequencing fragmented genomic DNA that contains the dsODN tag.
 2. Mapping the reads to a reference genome.
