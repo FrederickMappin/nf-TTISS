@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A  Nextflow pipeline Tagmentation-based Tag Integration Site Sequencing (TTISS), a
-rapid, streamlined protocol for analyzing double-strand breaks, such as those created by CRISPR
+pipeline for analyzing double-strand breaks, such as those created by CRISPR
 nucleases.
 ---
 
