@@ -4,8 +4,9 @@
 [![Docker](https://img.shields.io/badge/Docker-ready-blue?logo=docker)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A **Nextflow** pipeline for detecting and characterising off-target transgene integration sites in CRISPR-based genome-editing experiments that use double-stranded oligodeoxynucleotide (dsODN) donors.
-
+A  Nextflow pipeline Tagmentation-based Tag Integration Site Sequencing (TTISS), a
+rapid, streamlined protocol for analyzing double-strand breaks, such as those created by CRISPR
+nucleases.
 ---
 
 ## Table of Contents
