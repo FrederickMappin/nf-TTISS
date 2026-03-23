@@ -31,12 +31,8 @@ A Nextflow pipeline Tagmentation-based Tag Integration Site Sequencing (TTISS), 
 
 ## Background
 
-After CRISPR-mediated genome editing with dsODN donors, the donor DNA can integrate at both the on-target cut site and at off-target sites throughout the genome.  **TTISS** (Tagmentation-based Tag Integration Site Sequencing) identifies those sites by:
-
-1. Sequencing fragmented genomic DNA that contains the dsODN tag.
-2. Mapping the reads to a reference genome.
-3. Extracting genomic windows around mapped positions.
-4. Matching guide-RNA sequences to those windows to determine which CRISPR target site is responsible.
+Tagmentation-based Tag Integration Site Sequencing (TTISS) is an efficient, rapid, and highly scalable method developed to profile the double-strand break (DSB) landscapes created by programmable nucleases like CRISPR-Cas9. While many existing techniques for assessing off-target cleavage are limited by low-throughput—often restricted to one guide RNA per barcoded sample—TTISS is specifically designed to overcome these limitations through guide multiplexing and bulk tagmentation.
+TTISS offers a streamlined, high-throughput solution for off-target discovery by combining direct-in-lysate tagmentation with the unique ability to multiplex over 50 guide RNAs in a single reaction, significantly reducing the time, cost, and labor required compared to traditional enrichment methods.
 
 ---
 
