@@ -1,4 +1,4 @@
-# nf-TTISS — Targeted Transgene Integration Site Sequencing
+# nf-TTISS —  tagmentation-based tag integration site
 
 [![Nextflow](https://img.shields.io/badge/Nextflow-%E2%89%A523.0.0-brightgreen?logo=nextflow)](https://www.nextflow.io/)
 [![Docker](https://img.shields.io/badge/Docker-ready-blue?logo=docker)](https://www.docker.com/)
