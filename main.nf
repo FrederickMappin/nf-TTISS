@@ -2,7 +2,7 @@
 
 /*
  * =============================================================================
- * nf-TTISS — Targeted Transgene Integration Site Sequencing Pipeline
+ * nf-TTISS — Tagmentation-based Tag Integration Site Sequencing
  * =============================================================================
  *
  * Detects and characterises off-target transgene integration sites in
