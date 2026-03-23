@@ -4,6 +4,7 @@
 [![Docker](https://img.shields.io/badge/Docker-ready-blue?logo=docker)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+[Highly Parallel Profiling of Cas9 Variant Specificity]
 A  Nextflow pipeline Tagmentation-based Tag Integration Site Sequencing (TTISS), a
 pipeline for analyzing double-strand breaks, such as those created by CRISPR
 nucleases.
