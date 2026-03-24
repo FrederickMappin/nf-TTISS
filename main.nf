@@ -18,15 +18,16 @@
  *   7. MATCH_GUIDES     — guide-RNA matching with PAM validation
  *
  * Usage:
- *   nextflow run main.nf -profile docker
- *   nextflow run main.nf -profile docker --reads "data/*_R{1,2}.fastq.gz"
+ *   nextflow run main.nf -profile docker --samplesheet samplesheet.csv
+ *   nextflow run main.nf -profile docker --samplesheet samplesheet.csv --outdir results
  * =============================================================================
  */
+
 
 nextflow.enable.dsl=2
 
 // Parameters
-params.reads = "data/*_R{1,2}.fastq.gz"
+params.samplesheet = null
 params.outdir = "results"
 params.primer = "^NNNNNNNNNNNNNNNNNCGC"
 params.error_rate = 0.1
@@ -38,9 +39,9 @@ params.pam = "NGG"
 
 // Print parameters
 log.info """\
-    CUTADAPT PIPELINE - PRIMER FILTERING
+    TTISS PIPELINE - SAMPLESHEET MODE
     =====================================
-    reads        : ${params.reads}
+    samplesheet  : ${params.samplesheet}
     outdir       : ${params.outdir}
     primer       : ${params.primer}
     error_rate   : ${params.error_rate}
@@ -257,36 +258,48 @@ process MATCH_GUIDES {
 /*
  * Main workflow
  */
+
 workflow {
-    // Create channel from input files
-    read_pairs_ch = Channel
-        .fromFilePairs(params.reads, checkIfExists: true)
-    
+    // Validate required parameters
+    if (!params.samplesheet) {
+        error "Please provide a samplesheet with --samplesheet <path>"
+    }
+
+    // Create channel from samplesheet CSV
+    read_pairs_ch = Channel.fromPath(params.samplesheet, checkIfExists: true)
+        .splitCsv(header:true)
+        .map { row ->
+            def sample_id = row.sample_id
+            def r1 = file(row.R1, checkIfExists: true)
+            def r2 = file(row.R2, checkIfExists: true)
+            tuple(sample_id, [r1, r2])
+        }
+
     // Reference genome and index files
     reference_ch = Channel.fromPath(params.reference, checkIfExists: true)
     reference_index_ch = Channel.fromPath("${params.reference}.*", checkIfExists: true).collect()
-    
+
     // Guide file
     guides_ch = Channel.fromPath(params.guides, checkIfExists: true)
-    
+
     // Run FastQC on raw reads
     FASTQC(read_pairs_ch)
-    
+
     // Run MultiQC to aggregate FastQC reports
     MULTIQC(FASTQC.out.reports.collect())
-    
+
     // Run Cutadapt to filter by primer
     CUTADAPT(read_pairs_ch)
-    
+
     // Trim primer and truncate to mapping lengths
     TRIM_AND_TRUNCATE(CUTADAPT.out.filtered_reads)
-    
+
     // Map trimmed reads with BWA
     BWA_MAP(TRIM_AND_TRUNCATE.out.trimmed_reads, reference_ch, reference_index_ch)
-    
+
     // Extract 100bp windows around integration sites with ≥2 reads
     EXTRACT_WINDOWS(BWA_MAP.out.bam, reference_ch)
-    
+
     // Match guides to windows
     MATCH_GUIDES(EXTRACT_WINDOWS.out.fasta, guides_ch)
 }
