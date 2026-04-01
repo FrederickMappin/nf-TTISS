@@ -1,3 +1,2 @@
 sample_id,R1,R2
-sample1,data/sample1_R1.fastq.gz,data/sample1_R2.fastq.gz
-sample2,data/sample2_R1.fastq.gz,data/sample2_R2.fastq.gz
+sim,/workspaces/nf-TTISS/data/sim_R1.fastq.gz,/workspaces/nf-TTISS/data/sim_R2.fastq.gz

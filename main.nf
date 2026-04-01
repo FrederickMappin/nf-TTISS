@@ -33,7 +33,7 @@ params.primer = "^NNNNNNNNNNNNNNNNNCGC"
 params.error_rate = 0.1
 params.min_length = 40
 params.quality_cutoff = 20
-params.reference = "data/reference/hg19_chr8.fa"
+params.reference = "ref/hg19_chr8.fa"
 params.guides = "TTIS/Guides.txt"
 params.pam = "NGG"
 
@@ -204,9 +204,6 @@ process EXTRACT_WINDOWS {
     
     script:
     """
-    # Install tools if needed
-    mamba install -y -c bioconda -c conda-forge samtools bedtools
-    
     # Create FASTA index if it doesn't exist
     samtools faidx ${reference}
     
@@ -219,7 +216,7 @@ process EXTRACT_WINDOWS {
     
     # Merge windows within 10bp and sum read counts, then filter for ≥2 total reads
     bedtools merge -i ${sample_id}_windows_raw.bed -c 4 -o sum -d 10 | \
-      awk '\$4 >= 1' > ${sample_id}_windows.bed
+      awk '\$4 >= 2' > ${sample_id}_windows.bed
     
     # Extract sequences from reference
     bedtools getfasta -fi ${reference} -bed ${sample_id}_windows.bed \
@@ -243,9 +240,6 @@ process MATCH_GUIDES {
     
     script:
     """
-    # Install Python dependencies
-    pip3 install biopython numpy
-    
     # Run the matcher
     python3 ${projectDir}/TTIS/main.py \
         --guidefile ${guides} \

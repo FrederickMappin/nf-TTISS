@@ -55,6 +55,5 @@ COPY TTIS/ /pipeline/TTIS/
 # Copy the Nextflow pipeline files
 COPY main.nf nextflow.config /pipeline/
 
-# Default entrypoint — drop into bash so the image works with Nextflow
-ENTRYPOINT ["/bin/bash", "-c"]
+# Default entrypoint — let Nextflow (or the user) pass commands directly
 CMD ["bash"]
