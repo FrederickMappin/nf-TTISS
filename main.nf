@@ -36,6 +36,7 @@ params.quality_cutoff = 20
 params.reference = "ref/hg19_chr8.fa"
 params.guides = "TTIS/Guides.txt"
 params.pam = "NGG"
+params.mapq = 20
 
 // Print parameters
 log.info """\
@@ -46,8 +47,7 @@ log.info """\
     primer       : ${params.primer}
     error_rate   : ${params.error_rate}
     min_length   : ${params.min_length}
-    quality      : ${params.quality_cutoff}
-    """
+    quality      : ${params.quality_cutoff}    mapq         : ${params.mapq}    """
     .stripIndent()
 
 /*
@@ -178,12 +178,42 @@ process BWA_MAP {
     
     script:
     """
-    bwa mem -t ${task.cpus} -k 10 -T 15 -A 1 -B 1 -O 1 -E 1 -I 1000 ${reference} ${reads[0]} ${reads[1]} > ${sample_id}.sam
+    bwa mem -t ${task.cpus} -k 10 -T 19 -A 1 -B 4 -O 4 -E 1 ${reference} ${reads[0]} ${reads[1]} > ${sample_id}.sam
     
-    samtools view -f 2 -Sb ${sample_id}.sam | \
+    samtools view -F 12 -h ${sample_id}.sam | \
+        awk 'substr(\$0,1,1)=="@" || (\$9==0 || (\$9>=-${params.max_insert} && \$9<=${params.max_insert}))' | \
+        samtools view -Sb | \
         samtools sort -@ ${task.cpus} -o ${sample_id}.bam -
     
     samtools index ${sample_id}.bam
+    """
+}
+
+/*
+ * Process: Summarise mapping hotspots from SAM file
+ */
+process MAPPING_SUMMARY {
+    tag "$sample_id"
+    publishDir "${params.outdir}/summary", mode: 'copy'
+
+    input:
+    tuple val(sample_id), path(sam)
+
+    output:
+    tuple val(sample_id), path("${sample_id}_hotspots.csv"), emit: hotspots
+
+    script:
+    """
+    # Build a 1 kb-binned read-count table from mapped reads (MAPQ >= ${params.mapq})
+    # Columns: rank, chromosome, window_start, window_end, read_count
+    echo "rank,chromosome,window_start,window_end,read_count" > ${sample_id}_hotspots.csv
+
+    awk '!/^@/ && \$3!="*" && \$5>=${params.mapq} {bin=int(\$4/1000)*1000; print \$3","bin","bin+1000}' ${sam} \
+      | sort \
+      | uniq -c \
+      | sort -rn \
+      | awk 'BEGIN{OFS=","} {print NR, \$2, \$3, \$4, \$1}' \
+      >> ${sample_id}_hotspots.csv
     """
 }
 
@@ -207,8 +237,8 @@ process EXTRACT_WINDOWS {
     # Create FASTA index if it doesn't exist
     samtools faidx ${reference}
     
-    # Create windows with read counts (no filtering yet)
-    samtools view -F 4 ${bam} | \
+    # Extract uniquely mapped reads (MAPQ >= ${params.mapq}) and build windows
+    samtools view -F 4 -q ${params.mapq} ${bam} | \
       awk 'BEGIN{OFS="\\t"} {print \$3, \$4-50, \$4+50}' | \
       sort -k1,1 -k2,2n | \
       uniq -c | \
@@ -290,6 +320,9 @@ workflow {
 
     // Map trimmed reads with BWA
     BWA_MAP(TRIM_AND_TRUNCATE.out.trimmed_reads, reference_ch, reference_index_ch)
+
+    // Summarise top mapping hotspots
+    MAPPING_SUMMARY(BWA_MAP.out.sam)
 
     // Extract 100bp windows around integration sites with ≥2 reads
     EXTRACT_WINDOWS(BWA_MAP.out.bam, reference_ch)

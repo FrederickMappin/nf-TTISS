@@ -14,3 +14,10 @@ data/
 # Reports
 *.html
 *.pdf
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Reference genome index (large binary files)
+ref/
