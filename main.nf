@@ -204,21 +204,21 @@ process MAPPING_SUMMARY {
 
     script:
     """
-    # Build a 1 kb-binned read-count table from mapped reads (MAPQ >= ${params.mapq})
-    # Columns: rank, chromosome, window_start, window_end, read_count
-    echo "rank,chromosome,window_start,window_end,read_count" > ${sample_id}_hotspots.csv
+    # Exact R1 integration start sites from mapped reads (MAPQ >= ${params.mapq})
+    # Columns: rank, chromosome, start_site, read_count
+    echo "rank,chromosome,start_site,read_count" > ${sample_id}_hotspots.csv
 
-    awk '!/^@/ && \$3!="*" && \$5>=${params.mapq} {bin=int(\$4/1000)*1000; print \$3","bin","bin+1000}' ${sam} \
+    awk '!/^@/ && \$3!="*" && \$5>=${params.mapq} && int(\$2/64)%2==1 && int(\$2/4)%2==0 {print \$3","\$4}' ${sam} \
       | sort \
       | uniq -c \
       | sort -rn \
-      | awk 'BEGIN{OFS=","} {print NR, \$2, \$3, \$4, \$1}' \
+      | awk 'BEGIN{OFS=","} {split(\$2,a,","); print NR, a[1], a[2], \$1}' \
       >> ${sample_id}_hotspots.csv
     """
 }
 
 /*
- * Process: Extract 100bp windows around integration sites
+ * Process: Extract 120bp windows around integration sites (R1 only, ±60bp)
  */
 process EXTRACT_WINDOWS {
     tag "$sample_id"
@@ -237,9 +237,9 @@ process EXTRACT_WINDOWS {
     # Create FASTA index if it doesn't exist
     samtools faidx ${reference}
     
-    # Extract uniquely mapped reads (MAPQ >= ${params.mapq}) and build windows
-    samtools view -F 4 -q ${params.mapq} ${bam} | \
-      awk 'BEGIN{OFS="\\t"} {print \$3, \$4-50, \$4+50}' | \
+    # Extract R1 reads only (first in pair, -f 64) that are mapped and uniquely aligned
+    samtools view -f 64 -F 4 -q ${params.mapq} ${bam} | \
+      awk 'BEGIN{OFS="\\t"} {print \$3, \$4-60, \$4+60}' | \
       sort -k1,1 -k2,2n | \
       uniq -c | \
       awk '{print \$2"\\t"\$3"\\t"\$4"\\t"\$1}' > ${sample_id}_windows_raw.bed

@@ -46,9 +46,10 @@ The pipeline is implemented in seven Nextflow processes that execute sequentiall
 | 2 | **MULTIQC** | MultiQC 1.21 | Aggregate QC into a single HTML report |
 | 3 | **CUTADAPT** | Cutadapt 4.6 | Filter reads by UMI primer pattern `^NNNNNNNNNNNNNNNNNCGC` (17 random bases + CGC anchor) |
 | 4 | **TRIM_AND_TRUNCATE** | Cutadapt 4.6 | Remove primer, then truncate R1→25 bp, R2→15 bp |
-| 5 | **BWA_MAP** | BWA 0.7 + SAMtools | Map reads with ultra-sensitive parameters (`-k 10 -T 15`) |
-| 6 | **EXTRACT_WINDOWS** | SAMtools + BEDtools | Extract 100 bp windows around mapped positions; merge within 10 bp; keep windows with ≥1 supporting read |
-| 7 | **MATCH_GUIDES** | Python (BioPython, NumPy) | Score each window against every guide RNA (+ reverse complement) using Hamming distance and PAM validation |
+| 5 | **BWA_MAP** | BWA 0.7 + SAMtools | Map reads with ultra-sensitive parameters (`-k 10 -T 19`) |
+| 6 | **MAPPING_SUMMARY** | SAMtools + awk | Tabulate exact R1 integration start sites and read counts per site (MAPQ ≥ threshold) |
+| 7 | **EXTRACT_WINDOWS** | SAMtools + BEDtools | Extract ±60 bp windows (120 bp total) around R1 integration sites; merge within 10 bp; keep windows with ≥2 supporting reads |
+| 8 | **MATCH_GUIDES** | Python (BioPython, NumPy) | Score each window against every guide RNA (+ reverse complement) using Hamming distance and PAM validation |
 
 ---
 
@@ -77,15 +78,16 @@ data/*_R{1,2}.fastq.gz
    │ BWA_MAP  │  align to reference genome
    └──────────┘
         │
-        ▼
-  ┌─────────────────┐
-  │ EXTRACT_WINDOWS │  100 bp windows (.bed + .fasta)
-  └─────────────────┘
-        │
-        ▼
-  ┌──────────────┐
-  │ MATCH_GUIDES │  guide RNA matching (.csv)
-  └──────────────┘
+        ├──────────────────────────────────────────────────────────┐
+        ▼                                                          ▼
+  ┌──────────────────┐                                   ┌─────────────────┐
+  │ MAPPING_SUMMARY  │  exact R1 start sites + counts    │ EXTRACT_WINDOWS │  ±60 bp windows (.bed + .fasta)
+  └──────────────────┘                                   └─────────────────┘
+        │                                                          │
+        ▼                                                          ▼
+  <sample>_hotspots.csv                                   ┌──────────────┐
+                                                          │ MATCH_GUIDES │  guide RNA matching (.csv)
+                                                          └──────────────┘
 ```
 
 ---
@@ -95,7 +97,7 @@ data/*_R{1,2}.fastq.gz
 | Dependency | Version | Notes |
 |------------|---------|-------|
 | [Nextflow](https://www.nextflow.io/) | ≥ 23.0.0 | Workflow engine |
-| [Docker](https://www.docker.com/) **or** [Singularity](https://sylabs.io/singularity/) | any recent | Container runtime |
+| [Docker](https://www.docker.com/) 
 | Java | 11–17 | Required by Nextflow |
 
 > **Tip:** If you use the bundled **Dockerfile** all bioinformatics tools are pre-installed — you only need Nextflow + Docker on the host.
@@ -126,10 +128,18 @@ Place the following files in the project directory:
 
 | File | Location | Description |
 |------|----------|-------------|
+| Samplesheet CSV | `samplesheet.csv` | Maps sample IDs to R1/R2 FASTQ paths (see format below) |
 | Paired-end FASTQ files (gzipped) | `data/*_R{1,2}.fastq.gz` | Raw sequencing reads |
-| Reference genome (FASTA) | `data/reference/genome.fa` | e.g. hg19, hg38, or custom |
-| BWA index files | `data/reference/genome.fa.{amb,ann,bwt,pac,sa}` | Pre-built with `bwa index` |
+| Reference genome (FASTA) | `ref/genome.fa` | e.g. hg19, hg38, or custom |
+| BWA index files | `ref/genome.fa.{amb,ann,bwt,pac,sa}` | Pre-built with `bwa index` |
 | Guide RNA file | `TTIS/Guides.txt` | CSV: `<id>,<20-nt guide sequence>` |
+
+**Samplesheet format (`samplesheet.csv`):**
+```
+sample_id,R1,R2
+sample1,data/sample1_R1.fastq.gz,data/sample1_R2.fastq.gz
+sample2,data/sample2_R1.fastq.gz,data/sample2_R2.fastq.gz
+```
 
 **Guide file format (`TTIS/Guides.txt`):**
 ```
@@ -140,19 +150,19 @@ Place the following files in the project directory:
 ### Run the Pipeline
 
 ```bash
-# Basic — uses per-process biocontainer images
-nextflow run main.nf -profile docker
+# Basic run
+nextflow run main.nf -profile docker --samplesheet samplesheet.csv
 
 # Custom parameters
 nextflow run main.nf -profile docker \
-  --reads  "data/*_R{1,2}.fastq.gz" \
-  --reference "data/reference/hg38.fa" \
+  --samplesheet samplesheet.csv \
+  --reference "ref/hg38.fa" \
   --guides "TTIS/Guides.txt" \
   --pam    "NGG" \
   --outdir "results"
 
 # Resume a failed/interrupted run
-nextflow run main.nf -profile docker -resume
+nextflow run main.nf -profile docker --samplesheet samplesheet.csv -resume
 ```
 
 ---
@@ -209,11 +219,12 @@ docker compose run --rm ttis-matcher \
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `--reads` | `data/*_R{1,2}.fastq.gz` | Glob pattern for paired-end FASTQ files |
+| `--samplesheet` | *(required)* | CSV file with columns `sample_id,R1,R2` |
 | `--outdir` | `results` | Directory for all pipeline outputs |
-| `--reference` | `data/reference/hg19_chr8.fa` | Reference genome in FASTA format |
+| `--reference` | `ref/hg19_chr8.fa` | Reference genome in FASTA format |
 | `--guides` | `TTIS/Guides.txt` | Guide RNA file (CSV: `id,sequence`) |
 | `--pam` | `NGG` | PAM sequence for guide matching (`N` = any nucleotide) |
+| `--mapq` | `20` | Minimum MAPQ to consider a read as uniquely mapped |
 
 ### Read Processing
 
@@ -286,7 +297,9 @@ results/
 │   ├── <sample>.sam
 │   ├── <sample>.bam
 │   └── <sample>.bam.bai
-├── windows/                    # Genomic windows around integration sites
+├── summary/                    # Integration site hotspot table
+│   └── <sample>_hotspots.csv   # Columns: rank, chromosome, start_site, read_count
+├── windows/                    # 120 bp genomic windows around integration sites
 │   ├── <sample>_windows.bed    # Coordinates + read counts
 │   └── <sample>_windows.fasta  # Extracted sequences
 ├── matches/                    # Guide RNA matching results
@@ -317,7 +330,7 @@ results/
 
 ## Guide Matching Algorithm
 
-For each 100 bp window the matcher:
+For each 120 bp window the matcher:
 
 1. Slides a 20 bp window across the sequence.
 2. Computes the **Hamming distance** to every guide (forward + reverse complement).
@@ -335,14 +348,8 @@ Only rows where the PAM matches are written to the output CSV.
 | Profile | Description |
 |---------|-------------|
 | `standard` | Local execution (no containers) — requires all tools installed locally |
-| `docker` | Per-process Docker containers from BioContainers registry |
-| `singularity` | Per-process Singularity images (for HPC clusters) |
-| `slurm` | SLURM job scheduler (combine with `docker` or `singularity`) |
-
-Combine profiles:
-```bash
-nextflow run main.nf -profile singularity,slurm
-```
+| `docker` | Per-process Docker containers — each process runs in `nf-ttiss:latest` |
+| `local_docker` | Single all-in-one `nf-ttiss:latest` image for all processes |
 
 ---
 
@@ -365,7 +372,7 @@ nextflow run main.nf -profile singularity,slurm
 3. Commit your changes with clear messages.
 4. Open a pull request against `main`.
 
-Please ensure any new Nextflow processes have corresponding container definitions in both the `docker` and `singularity` profiles.
+Please ensure any new Nextflow processes have a container definition in the `docker` profile in `nextflow.config`.
 
 ---
 
@@ -376,8 +383,10 @@ This project is released under the [MIT License](LICENSE).
 ## Key Features
 
 - **UMI-based filtering**: Retains reads with correct primer pattern
-- **Ultra-sensitive mapping**: BWA parameters optimized for short reads (-k 10 -T 15)
-- **Window merging**: Combines integration sites within 10bp
+- **Ultra-sensitive mapping**: BWA parameters optimized for short reads (`-k 10 -T 19`)
+- **R1-anchored windows**: Windows built from R1 reads only — the exact integration junction, not random Tn5 cuts
+- **Integration site summary**: Exact start-site table (`_hotspots.csv`) ranked by read count before windowing
+- **Window merging**: Combines integration sites within 10 bp
 - **Strand-aware matching**: Searches both forward and reverse complement
-- **Reproducible**: Docker/Singularity containers ensure consistency
+- **Reproducible**: Docker containers ensure consistency
 
