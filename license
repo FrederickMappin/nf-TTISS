@@ -1,0 +1,7 @@
+This Nextflow pipeline is restricted to non-commercial, academic research purposes under the PolyForm Noncommercial 1.0.0 license.
+
+Commercial Use: For-profit entities must obtain a separate license. To request permission, contact Frederick Mappin  at drfrederickmappin@gmail.com.
+
+Third-Party Tools: This license covers the workflow logic only. Underlying tools (e.g., via Docker/Conda) are subject to their own respective licenses.
+
+AI Training: Use of this code for training machine learning or AI models is strictly prohibited without explicit consent.
